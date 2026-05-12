@@ -254,4 +254,50 @@ app.delete("/api/notes/:id", async (req, res) => {
   }
 });
 
-app.listen(port, () => console.log(`🚀 API on http://localhost:${port}`));
+// =====================================================
+// 👑 ADMIN ROUTES (for supervisor access)
+// =====================================================
+
+// 👥 ADMIN: Get all users
+app.get("/api/admin/users", async (req, res) => {
+  if (!req.session.userId)
+    return res.status(401).json({ error: "Not logged in" });
+  
+  // Simple admin check: only user ID 1 can access (you can change this)
+  if (req.session.userId !== 1)
+    return res.status(403).json({ error: "Admin access required" });
+  
+  try {
+    const result = await db.query(
+      "SELECT id, email, name, created_at FROM users ORDER BY created_at DESC",
+    );
+    res.json({ users: result.rows });
+  } catch (err: any) {
+    res.status(500).json({ error: "Failed to fetch users" });
+  }
+});
+
+// 📝 ADMIN: Get all notes from all users
+app.get("/api/admin/notes", async (req, res) => {
+  if (!req.session.userId)
+    return res.status(401).json({ error: "Not logged in" });
+  
+  // Simple admin check: only user ID 1 can access
+  if (req.session.userId !== 1)
+    return res.status(403).json({ error: "Admin access required" });
+  
+  try {
+    const result = await db.query(`
+      SELECT n.id, n.title, n.content, n.created_at, n.updated_at, 
+             u.email, u.name as user_name
+      FROM notes n
+      JOIN users u ON n.user_id = u.id
+      ORDER BY n.created_at DESC
+    `);
+    res.json({ notes: result.rows });
+  } catch (err: any) {
+    res.status(500).json({ error: "Failed to fetch all notes" });
+  }
+});
+
+app.listen(port, () => console.log(`🚀 API on http://localhost:${port}`)); 
